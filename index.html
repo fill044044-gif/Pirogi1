@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFO на аутсорсе - Интерактивное КП</title>
+    
+    <!-- Подключаем Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Подключаем иконки Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+
+        /* Анимация бегущей строки */
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .animate-scroll {
+            animation: scroll 35s linear infinite;
+            display: flex;
+            width: max-content;
+        }
+        .animate-scroll:hover {
+            animation-play-state: paused;
+        }
+
+        /* Анимация переходов шагов */
+        .step-container {
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .step-container.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Ползунки (Range inputs) */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 5px;
+            background: #e2e8f0;
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        #range-revenue::-webkit-slider-thumb { background: #1e293b; }
+        #range-fc::-webkit-slider-thumb { background: #f59e0b; }
+        #range-writeoffs::-webkit-slider-thumb { background: #ef4444; }
+        #range-fot::-webkit-slider-thumb { background: #3b82f6; }
+
+        /* Выбранные боли (Шаг 2) */
+        .pain-card.selected {
+            border-color: #10b981;
+            background-color: #ecfdf5;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: scale(1.01);
+        }
+        .pain-card.selected .check-icon-container {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .pain-card.selected .check-icon {
+            display: block;
+        }
+        .check-icon { display: none; color: white; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Бегущая липкая лента -->
+    <div class="bg-emerald-600 text-white overflow-hidden py-2 flex whitespace-nowrap text-[10px] sm:text-sm font-bold uppercase tracking-wider sticky top-0 z-50">
+        <div class="animate-scroll">
+            <div class="flex gap-4 sm:gap-8 px-2 sm:px-4 items-center">
+                <span>окупаемость услуг cfo - от 14 дней</span><span class="text-emerald-300">•</span>
+                <span>найдите скрытую прибыль производства</span><span class="text-emerald-300">•</span>
+                <span>избавьтесь от кассовых разрывов навсегда</span><span class="text-emerald-300">•</span>
+                <span>выведите неликвид со складов</span><span class="text-emerald-300">•</span>
+                <span>хватит терять маржу на списаниях витрин</span><span class="text-emerald-300">•</span>
+            </div>
+            <div class="flex gap-4 sm:gap-8 px-2 sm:px-4 items-center">
+                <span>окупаемость услуг cfo - от 14 дней</span><span class="text-emerald-300">•</span>
+                <span>найдите скрытую прибыль производства</span><span class="text-emerald-300">•</span>
+                <span>избавьтесь от кассовых разрывов навсегда</span><span class="text-emerald-300">•</span>
+                <span>выведите неликвид со складов</span><span class="text-emerald-300">•</span>
+                <span>хватит терять маржу на списаниях витрин</span><span class="text-emerald-300">•</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Шапка с прогрессом -->
+    <header class="bg-[#1e293b] text-white sticky top-[32px] sm:top-[36px] z-40 shadow-md">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                    <i data-lucide="target" class="text-emerald-400 w-4 h-4 sm:w-5 sm:h-5"></i>
+                </div>
+                <span class="font-bold tracking-wide text-sm sm:text-base">CFO на аутсорсе</span>
+            </div>
+            <div class="text-[10px] sm:text-sm font-semibold text-slate-300 bg-slate-800 px-2 sm:px-3 py-1 rounded-full">
+                Шаг <span id="current-step-display">1</span> из 7
+            </div>
+        </div>
+        <div class="h-1 w-full bg-slate-800">
+            <div id="progress-bar" class="h-full bg-emerald-500 transition-all duration-500 ease-out" style="width: 14.28%;"></div>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="flex-grow max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-12 flex flex-col justify-center">
+        
+        <!-- ШАГ 1: Введение -->
+        <div id="step-1" class="step-container active">
+            <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                <div class="order-2 lg:order-1">
+                    <span class="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-[10px] sm:text-xs font-bold tracking-wider uppercase mb-4 sm:mb-6">
+                        <i data-lucide="alert-octagon" class="w-3 h-3 sm:w-4 sm:h-4"></i> системная ошибка роста
+                    </span>
+                    <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0f172a] mb-4 sm:mb-6 tracking-tight leading-[1.1]">
+                        Ваша сеть выросла, <br />
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">
+                            а чистая прибыль - нет.
+                        </span>
+                    </h1>
+                    <p class="text-base sm:text-lg text-slate-600 mb-6 sm:mb-8 leading-relaxed">
+                        Управление гибридной моделью требует не просто констатации фактов бухгалтером. Вам нужен проактивный финансовый инжиниринг.
+                    </p>
+
+                    <div class="space-y-3 sm:space-y-4">
+                        <div class="flex gap-3 sm:gap-4 items-start bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
+                            <i data-lucide="store" class="text-blue-500 shrink-0 mt-0.5 sm:mt-1 w-5 h-5 sm:w-6 sm:h-6"></i>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm sm:text-base">15 Пекарен и 4 Столовые</h4>
+                                <p class="text-xs sm:text-sm text-slate-500 mt-1">Списания витрины и плавающий Food Cost съедают маржу.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 sm:gap-4 items-start bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
+                            <i data-lucide="factory" class="text-emerald-500 shrink-0 mt-0.5 sm:mt-1 w-5 h-5 sm:w-6 sm:h-6"></i>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm sm:text-base">2 Производства</h4>
+                                <p class="text-xs sm:text-sm text-slate-500 mt-1">Работают «в ноль», просто покрывая аренду и ФОТ. Эффективность скрыта из-за котлового учета.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative group rounded-3xl overflow-hidden shadow-2xl border border-slate-200 order-1 lg:order-2 h-[250px] sm:h-[400px] lg:h-[500px]">
+                    <div class="absolute inset-0 bg-emerald-900/10 z-10 group-hover:bg-transparent transition-colors duration-500"></div>
+                    <div class="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 bg-white/95 backdrop-blur p-2 sm:p-4 rounded-xl sm:rounded-2xl shadow-xl border border-white flex items-center gap-2 sm:gap-3 animate-bounce shadow-emerald-500/20">
+                        <div class="bg-emerald-100 p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl">
+                            <i data-lucide="trending-up" class="text-emerald-600 w-4 h-4 sm:w-6 sm:h-6"></i>
+                        </div>
+                        <div>
+                            <div class="text-[8px] sm:text-xs font-bold text-slate-500 uppercase tracking-wide">скрытый потенциал</div>
+                            <div class="font-black text-slate-800 text-sm sm:text-lg">+28% маржи</div>
+                        </div>
+                    </div>
+                    <img src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=1000" alt="Аналитика" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700">
+                </div>
+            </div>
+        </div>
+
+        <!-- ШАГ 2: Боли -->
+        <div id="step-2" class="step-container max-w-3xl mx-auto">
+            <div class="text-center mb-6 sm:mb-10">
+                <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-3 sm:mb-4">Что болит прямо сейчас?</h2>
+                <p class="text-sm sm:text-base text-slate-600 px-2">Выберите пункты, которые отнимают ваше время и нервы. Это поможет настроить диагностику.</p>
+            </div>
+            <div class="space-y-3 sm:space-y-4" id="pain-list">
+                <!-- Карточки будут обрабатываться в JS -->
+                <div class="pain-card p-4 sm:p-5 rounded-2xl border-2 border-slate-200 bg-white cursor-pointer transition-all flex gap-3 sm:gap-4 hover:border-emerald-200 hover:bg-slate-50">
+                    <div class="check-icon-container w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                        <i data-lucide="check-circle" class="check-icon w-3 h-3 sm:w-4 sm:h-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base sm:text-lg mb-1 leading-tight">Черная дыра в производстве</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Цех отгружает продукцию в точки без наценки (только закрывая ФОТ и аренду). Неясно, прибыльный он или нет.</p>
+                    </div>
+                </div>
+                <div class="pain-card p-4 sm:p-5 rounded-2xl border-2 border-slate-200 bg-white cursor-pointer transition-all flex gap-3 sm:gap-4 hover:border-emerald-200 hover:bg-slate-50">
+                    <div class="check-icon-container w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                        <i data-lucide="check-circle" class="check-icon w-3 h-3 sm:w-4 sm:h-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base sm:text-lg mb-1 leading-tight">Плавающий Food Cost</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Цены на продукты растут каждую неделю, а технологические карты обновляются редко. Прибыль тает.</p>
+                    </div>
+                </div>
+                <div class="pain-card p-4 sm:p-5 rounded-2xl border-2 border-slate-200 bg-white cursor-pointer transition-all flex gap-3 sm:gap-4 hover:border-emerald-200 hover:bg-slate-50">
+                    <div class="check-icon-container w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                        <i data-lucide="check-circle" class="check-icon w-3 h-3 sm:w-4 sm:h-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base sm:text-lg mb-1 leading-tight">Неконтролируемые списания</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Продукция на витринах в пекарнях списывается, съедая чистую прибыль розничных точек.</p>
+                    </div>
+                </div>
+                <div class="pain-card p-4 sm:p-5 rounded-2xl border-2 border-slate-200 bg-white cursor-pointer transition-all flex gap-3 sm:gap-4 hover:border-emerald-200 hover:bg-slate-50">
+                    <div class="check-icon-container w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                        <i data-lucide="check-circle" class="check-icon w-3 h-3 sm:w-4 sm:h-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base sm:text-lg mb-1 leading-tight">Угроза кассовых разрывов</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Много денег заморожено в остатках на складах, иногда не хватает на аренду или зарплаты.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ШАГ 3: Калькулятор -->
+        <div id="step-3" class="step-container w-full">
+            <div class="text-center mb-6 sm:mb-8">
+                <span class="text-emerald-600 font-bold tracking-wider uppercase text-[10px] sm:text-sm mb-2 block">интерактивная диагностика</span>
+                <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-3 sm:mb-4">Где заморожены деньги?</h2>
+                <p class="text-xs sm:text-base text-slate-600 max-w-2xl mx-auto px-2">Настройте ползунки под ваши текущие реалии, чтобы увидеть скрытый потенциал системы.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-5xl mx-auto flex flex-col lg:flex-row">
+                <!-- Слайдеры -->
+                <div class="lg:w-1/2 p-5 sm:p-8 lg:p-12 space-y-6 sm:space-y-8 bg-white border-b lg:border-b-0 lg:border-r border-slate-100">
+                    <div>
+                        <div class="flex justify-between items-center mb-3 sm:mb-4">
+                            <label class="font-bold text-slate-700 text-xs sm:text-sm md:text-base">Выручка сети (мес)</label>
+                            <span class="font-black text-slate-900 text-lg sm:text-xl"><span id="val-rev">51</span> млн ₽</span>
+                        </div>
+                        <input type="range" id="range-revenue" min="20" max="150" step="1" value="51" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-3 sm:mb-4">
+                            <label class="font-bold text-slate-700 text-xs sm:text-sm md:text-base flex items-center gap-1.5 sm:gap-2">
+                                Food Cost <i data-lucide="info" class="text-slate-400 w-3 h-3 sm:w-3.5 sm:h-3.5"></i>
+                            </label>
+                            <span class="font-bold text-amber-500 text-lg sm:text-xl"><span id="val-fc">36</span>%</span>
+                        </div>
+                        <input type="range" id="range-fc" min="25" max="50" step="1" value="36" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-3 sm:mb-4">
+                            <label class="font-bold text-slate-700 text-xs sm:text-sm md:text-base">Списания и брак</label>
+                            <span class="font-bold text-red-500 text-lg sm:text-xl"><span id="val-wo">9</span>%</span>
+                        </div>
+                        <input type="range" id="range-writeoffs" min="1" max="15" step="1" value="9" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-3 sm:mb-4">
+                            <label class="font-bold text-slate-700 text-xs sm:text-sm md:text-base">ФОТ (Зарплаты)</label>
+                            <span class="font-bold text-blue-500 text-lg sm:text-xl"><span id="val-fot">24</span>%</span>
+                        </div>
+                        <input type="range" id="range-fot" min="15" max="40" step="1" value="24" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Результаты -->
+                <div class="lg:w-1/2 p-6 sm:p-8 lg:p-12 bg-[#0f172a] text-white relative overflow-hidden flex flex-col justify-center">
+                    <svg class="absolute bottom-0 right-0 w-48 sm:w-64 h-48 sm:h-64 text-slate-800 opacity-50 transform translate-x-10 translate-y-10" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4">
+                        <path d="M0 100 L 30 70 L 50 85 L 100 20" />
+                    </svg>
+                    <div class="relative z-10">
+                        <h3 class="text-slate-400 font-medium mb-1 sm:mb-2 text-xs sm:text-sm">ваша расчетная чистая прибыль:</h3>
+                        <div class="flex items-baseline gap-1.5 sm:gap-2 mb-6 sm:mb-8 border-b border-slate-700 pb-6 sm:pb-8">
+                            <span id="out-curr-profit" class="text-4xl sm:text-5xl font-black">4.6</span>
+                            <span class="text-xl sm:text-2xl font-bold">млн ₽</span>
+                            <span class="text-slate-500 ml-1 sm:ml-2 text-xs sm:text-sm">/ мес (<span id="out-curr-margin">9.0</span>%)</span>
+                        </div>
+                        <div class="mb-3 sm:mb-4 flex items-center gap-2 text-emerald-400 font-bold text-sm sm:text-base">
+                            <i data-lucide="check-circle" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                            <span>цель внедрения финучета:</span>
+                        </div>
+                        <p class="text-slate-300 text-xs sm:text-sm leading-relaxed mb-5 sm:mb-6">
+                            снижение Food Cost на 3% и списаний на 4% за счет ежедневного контроля отклонений, внедрения P&L и ABC-анализа.
+                        </p>
+                        <div class="flex items-baseline gap-1.5 sm:gap-2 mb-4">
+                            <span id="out-opt-profit" class="text-5xl sm:text-6xl font-black text-white">8.2</span>
+                            <span class="text-2xl sm:text-3xl font-bold text-white">млн ₽</span>
+                        </div>
+                        <div class="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-500/20 text-emerald-400 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-emerald-500/30 text-xs sm:text-sm">
+                            <i data-lucide="trending-up" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                            + <span id="out-add-profit">3.6</span> млн ₽ ежемесячно
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ШАГ 4: P&L Визуализация -->
+        <div id="step-4" class="step-container max-w-4xl mx-auto w-full">
+            <div class="text-center mb-6 sm:mb-12">
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3 sm:mb-4">Куда исчезает выручка?</h2>
+                <p class="text-sm sm:text-base text-slate-600 px-2">Визуализация структуры ваших расходов (P&L).</p>
+            </div>
+            <div class="bg-white p-4 sm:p-8 rounded-3xl shadow-lg border border-slate-200">
+                <div class="flex h-12 sm:h-16 w-full rounded-xl sm:rounded-full overflow-hidden shadow-inner mb-6 sm:mb-8">
+                    <div id="bar-fc" class="bg-amber-400 flex items-center justify-center text-white font-bold text-[8px] sm:text-sm overflow-hidden whitespace-nowrap px-1 transition-all">FC</div>
+                    <div id="bar-wo" class="bg-red-500 flex items-center justify-center text-white font-bold text-[8px] sm:text-sm overflow-hidden whitespace-nowrap px-1 transition-all">Брак</div>
+                    <div id="bar-fot" class="bg-blue-500 flex items-center justify-center text-white font-bold text-[8px] sm:text-sm overflow-hidden whitespace-nowrap px-1 transition-all">ФОТ</div>
+                    <div id="bar-other" class="bg-slate-400 flex items-center justify-center text-white font-bold text-[8px] sm:text-sm overflow-hidden whitespace-nowrap px-1 transition-all">Прочее</div>
+                    <div id="bar-margin" class="bg-emerald-500 flex items-center justify-center text-white font-black text-[8px] sm:text-sm overflow-hidden whitespace-nowrap px-1 transition-all">Маржа</div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 text-left">
+                    <div class="bg-slate-50 p-2 sm:p-3 rounded-lg"><div class="w-2 sm:w-3 h-2 sm:h-3 bg-amber-400 rounded-full mb-1 sm:mb-2"></div><div class="text-[10px] sm:text-xs font-bold uppercase text-slate-500 truncate">себестоимость</div><div id="box-fc" class="font-bold text-sm sm:text-lg">0.0M</div></div>
+                    <div class="bg-slate-50 p-2 sm:p-3 rounded-lg"><div class="w-2 sm:w-3 h-2 sm:h-3 bg-red-500 rounded-full mb-1 sm:mb-2"></div><div class="text-[10px] sm:text-xs font-bold uppercase text-slate-500 truncate">списания</div><div id="box-wo" class="font-bold text-sm sm:text-lg">0.0M</div></div>
+                    <div class="bg-slate-50 p-2 sm:p-3 rounded-lg"><div class="w-2 sm:w-3 h-2 sm:h-3 bg-blue-500 rounded-full mb-1 sm:mb-2"></div><div class="text-[10px] sm:text-xs font-bold uppercase text-slate-500 truncate">зарплаты</div><div id="box-fot" class="font-bold text-sm sm:text-lg">0.0M</div></div>
+                    <div class="bg-slate-50 p-2 sm:p-3 rounded-lg"><div class="w-2 sm:w-3 h-2 sm:h-3 bg-slate-400 rounded-full mb-1 sm:mb-2"></div><div class="text-[10px] sm:text-xs font-bold uppercase text-slate-500 truncate">аренда и др.</div><div id="box-other" class="font-bold text-sm sm:text-lg">0.0M</div></div>
+                    <div class="col-span-2 sm:col-span-3 md:col-span-1 bg-emerald-50 p-3 rounded-xl border border-emerald-100 flex md:flex-col justify-between items-center md:items-start"><div class="flex md:block items-center gap-2"><div class="w-3 h-3 bg-emerald-500 rounded-full md:mb-2"></div><div class="text-[10px] sm:text-xs font-bold uppercase text-emerald-700">чистая прибыль</div></div><div id="box-profit" class="font-black text-lg sm:text-xl text-emerald-600">0.0M</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ШАГ 5: Управление производством -->
+        <div id="step-5" class="step-container w-full">
+            <div class="text-center mb-6 sm:mb-10">
+                <span class="text-emerald-600 font-bold tracking-wider uppercase text-[10px] sm:text-sm mb-2 block">управление производством</span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3 sm:mb-4">Проблема: цех работает «в ноль»</h2>
+                <p class="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto px-2">Переключите тумблер, чтобы увидеть, как внутренние цены меняют экономику.</p>
+            </div>
+
+            <div class="flex justify-center mb-8 sm:mb-12 px-2">
+                <div class="bg-slate-200 p-1 rounded-full flex cursor-pointer shadow-inner w-full max-w-md" id="toggle-case-btn">
+                    <div id="toggle-left" class="flex-1 text-center py-2 sm:py-3 rounded-full text-[10px] sm:text-sm font-bold transition-all duration-300 bg-white shadow-md text-slate-900 scale-100 sm:scale-105">
+                        Котловой учет
+                    </div>
+                    <div id="toggle-right" class="flex-1 text-center py-2 sm:py-3 rounded-full text-[10px] sm:text-sm font-bold transition-all duration-300 text-slate-500 hover:text-slate-700">
+                        Учет CFO
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4 sm:gap-8 relative max-w-4xl mx-auto">
+                <div id="case-card-1" class="p-6 sm:p-8 rounded-3xl border-2 transition-all duration-500 bg-slate-50 border-slate-200">
+                    <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                        <div class="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-200 text-slate-600"><i data-lucide="factory" class="w-6 h-6 sm:w-8 sm:h-8"></i></div>
+                        <h3 class="font-bold text-xl sm:text-2xl">Заготовочный цех</h3>
+                    </div>
+                    <div id="case-content-1a" class="block">
+                        <div class="text-3xl sm:text-4xl font-extrabold text-slate-700 mb-1 sm:mb-2">0.0 млн ₽</div>
+                        <div class="text-[10px] sm:text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 sm:mb-4">работает в ноль</div>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">Отгружает продукцию в точки с минимальной наценкой, только чтобы покрыть аренду и ЗП. Эффективность замаскирована.</p>
+                    </div>
+                    <div id="case-content-1b" class="hidden">
+                        <div class="text-3xl sm:text-4xl font-extrabold text-emerald-600 mb-1 sm:mb-2">+ 2.8 млн ₽</div>
+                        <div class="text-[10px] sm:text-sm font-bold text-emerald-800 uppercase tracking-wider mb-3 sm:mb-4">реальная прибыль (15%)</div>
+                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">Цех «продает» полуфабрикаты точкам по внутренней рыночной цене. Мы видим, что цех сверхэффективен!</p>
+                    </div>
+                </div>
+
+                <div class="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-3 z-10 border-4 border-slate-50 shadow-lg">
+                    <i id="case-arrow" data-lucide="arrow-right" class="text-slate-300 w-6 h-6 transition-colors"></i>
+                </div>
+
+                <div id="case-card-2" class="p-6 sm:p-8 rounded-3xl border-2 transition-all duration-500 bg-slate-50 border-slate-200">
+                    <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                        <div class="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-blue-100 text-blue-500"><i data-lucide="store" class="w-6 h-6 sm:w-8 sm:h-8"></i></div>
+                        <h3 class="font-bold text-xl sm:text-2xl">Розница (19 точек)</h3>
+                    </div>
+                    <div id="case-content-2a" class="block">
+                        <div class="text-2xl sm:text-3xl font-extrabold text-blue-600 mb-1 sm:mb-2">Прибыль завышена</div>
+                        <div class="text-[10px] sm:text-sm font-bold text-blue-800 uppercase tracking-wider mb-3 sm:mb-4">иллюзия успеха</div>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">Точки получают готовый товар слишком дешево. Управляющие расслаблены, списания 10% не кажутся проблемой.</p>
+                    </div>
+                    <div id="case-content-2b" class="hidden">
+                        <div class="text-2xl sm:text-3xl font-extrabold text-blue-600 mb-1 sm:mb-2">Объективная прибыль</div>
+                        <div class="text-[10px] sm:text-sm font-bold text-blue-800 uppercase tracking-wider mb-3 sm:mb-4">жесткий контроль</div>
+                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">Точки покупают товар у цеха дорого. Теперь управляющие бьются за каждый процент списаний.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ШАГ 6: Тарифы -->
+        <div id="step-6" class="step-container w-full">
+            <div class="text-center mb-8 sm:mb-10">
+                <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-3 sm:mb-4">Выберите формат работы</h2>
+                <p class="text-sm sm:text-base text-slate-600 px-2">Стоимость услуг CFO на аутсорсе многократно окупается за счет найденных резервов.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4 sm:gap-6 max-w-6xl mx-auto px-2 sm:px-0">
+                <!-- План 1 -->
+                <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col hover:shadow-xl transition-all">
+                    <h3 class="text-lg sm:text-xl font-bold text-slate-900 mb-2">Аудит и Модель</h3>
+                    <p class="text-slate-500 text-xs sm:text-sm mb-4 sm:mb-6 h-auto md:h-10">Единоразовая глубокая диагностика вашей сети.</p>
+                    <div class="text-2xl sm:text-3xl font-black text-slate-900 mb-4 sm:mb-6">150 000 ₽</div>
+                    <ul class="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700"><i data-lucide="check-circle" class="text-emerald-500 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> анализ текущего P&L</li>
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700"><i data-lucide="check-circle" class="text-emerald-500 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> разбор себестоимости и списаний</li>
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700"><i data-lucide="check-circle" class="text-emerald-500 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> дорожная карта оптимизации</li>
+                    </ul>
+                    <button class="btn-select-plan w-full py-3 sm:py-3.5 rounded-xl font-bold text-sm sm:text-base border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white transition-colors">
+                        Выбрать план
+                    </button>
+                </div>
+
+                <!-- План 2 -->
+                <div class="bg-[#0f172a] rounded-3xl p-6 sm:p-8 border border-[#1e293b] shadow-2xl flex flex-col transform md:-translate-y-4 relative mt-4 md:mt-0">
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-emerald-400 to-teal-400 text-[#0f172a] text-[10px] sm:text-xs font-bold uppercase tracking-wider py-1 px-3 sm:px-4 rounded-full whitespace-nowrap">
+                        хит для сетей
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-bold text-white mb-2">CFO Сопровождение</h3>
+                    <p class="text-slate-400 text-xs sm:text-sm mb-4 sm:mb-6 h-auto md:h-10">Ежемесячное управление финансами.</p>
+                    <div class="text-2xl sm:text-3xl font-black text-white mb-2">250 000 ₽ <span class="text-xs sm:text-sm font-normal text-slate-500">/ мес</span></div>
+                    
+                    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                        <div class="text-[10px] sm:text-xs text-emerald-400 font-bold mb-1">окупается за:</div>
+                        <div class="text-lg sm:text-xl text-white font-black"><span id="roi-days">-</span> дней</div>
+                        <div class="text-[8px] sm:text-[10px] text-slate-400 mt-1">*потенциал +<span id="roi-pot">0.0</span>M ₽/мес</div>
+                    </div>
+
+                    <ul class="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-300"><i data-lucide="check-circle" class="text-emerald-400 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> все из Аудита</li>
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-300"><i data-lucide="check-circle" class="text-emerald-400 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> трансфертное ценообразование</li>
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-300"><i data-lucide="check-circle" class="text-emerald-400 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> платежный календарь</li>
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-300"><i data-lucide="check-circle" class="text-emerald-400 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> отчет перед собственником</li>
+                    </ul>
+                    <button class="btn-select-plan w-full py-3 sm:py-3.5 rounded-xl font-bold text-sm sm:text-base bg-emerald-500 text-slate-900 hover:bg-emerald-400 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                        Выбрать план
+                    </button>
+                </div>
+
+                <!-- План 3 -->
+                <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col hover:shadow-xl transition-all mt-4 md:mt-0">
+                    <h3 class="text-lg sm:text-xl font-bold text-slate-900 mb-2">Совет Директоров</h3>
+                    <p class="text-slate-500 text-xs sm:text-sm mb-4 sm:mb-6 h-auto md:h-10">Стратегия, инвестиции и масштабирование.</p>
+                    <div class="text-2xl sm:text-3xl font-black text-slate-900 mb-4 sm:mb-6">450 000 ₽ <span class="text-xs sm:text-sm font-normal text-slate-400">/ мес</span></div>
+                    <ul class="space-y-3 sm:space-y-4 mb-6 sm:mb-8 flex-grow">
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700"><i data-lucide="check-circle" class="text-emerald-500 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> полный контроль финансов</li>
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700"><i data-lucide="check-circle" class="text-emerald-500 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> привлечение инвестиций</li>
+                        <li class="flex gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700"><i data-lucide="check-circle" class="text-emerald-500 shrink-0 w-4 h-4 sm:w-5 sm:h-5"></i> участие в бордах с партнерами</li>
+                    </ul>
+                    <button class="btn-select-plan w-full py-3 sm:py-3.5 rounded-xl font-bold text-sm sm:text-base border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white transition-colors">
+                        Выбрать план
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ШАГ 7: Успех и контакты -->
+        <div id="step-7" class="step-container flex flex-col items-center text-center py-4 w-full">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-inner border-4 border-white">
+                <i data-lucide="phone" class="text-emerald-600 w-8 h-8 sm:w-10 sm:h-10"></i>
+            </div>
+            
+            <h2 class="text-2xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-3 sm:mb-4 leading-tight">
+                Мы очень рады, что вы готовы к изменениям!
+            </h2>
+            
+            <p class="text-sm sm:text-lg text-slate-600 mb-8 sm:mb-10 px-2 max-w-2xl leading-relaxed">
+                Ваш первый шаг к прозрачной и предсказуемой прибыли сделан. Выберите удобный способ связи, чтобы мы назначили дату.
+            </p>
+
+            <div class="bg-white p-6 sm:p-8 md:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-emerald-100 w-full max-w-xl">
+                <p class="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest font-bold mb-2 sm:mb-3">наш прямой номер</p>
+                
+                <a href="tel:89206420098" class="inline-block text-3xl sm:text-4xl md:text-5xl font-black text-[#0f172a] hover:text-emerald-600 transition-colors mb-6 sm:mb-8 tracking-tighter sm:tracking-normal">
+                    8 920 642-00-98
+                </a>
+                
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-6 sm:mb-8">
+                    <!-- Telegram -->
+                    <a href="https://t.me/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 bg-[#0088cc]/10 hover:bg-[#0088cc]/20 text-[#0088cc] font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl transition-all w-full sm:w-1/2 text-sm sm:text-base">
+                        <i data-lucide="send" class="w-4 h-4 sm:w-5 sm:h-5"></i> Telegram
+                    </a>
+                    <!-- Email -->
+                    <a href="mailto:info@yourdomain.com?subject=Заявка на услуги CFO" class="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl transition-all w-full sm:w-1/2 text-sm sm:text-base">
+                        <i data-lucide="mail" class="w-4 h-4 sm:w-5 sm:h-5"></i> Заявка на E-mail
+                    </a>
+                </div>
+
+                <div class="h-px bg-slate-100 w-full my-6 sm:my-8 relative">
+                    <div class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 sm:px-4 text-slate-400 text-[10px] sm:text-xs font-bold uppercase">или</div>
+                </div>
+                
+                <!-- Живая кнопка обратного звонка -->
+                <div id="callback-btn-container">
+                    <button id="btn-callback" class="w-full relative group overflow-hidden rounded-xl sm:rounded-2xl p-[2px]">
+                        <span class="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl sm:rounded-2xl opacity-70 group-hover:opacity-100 transition-opacity blur-sm"></span>
+                        <div class="relative bg-[#0f172a] text-white font-bold text-sm sm:text-lg py-3 sm:py-4 px-4 sm:px-8 rounded-xl sm:rounded-2xl transition-all flex items-center justify-center gap-2 sm:gap-3">
+                            <i data-lucide="phone-call" class="text-emerald-400 animate-pulse w-4 h-4 sm:w-5 sm:h-5"></i> Заказать обратный звонок
+                        </div>
+                    </button>
+                </div>
+                
+                <!-- Сообщение об успехе -->
+                <div id="callback-success" class="hidden w-full bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-2xl py-3 sm:py-4 px-4 sm:px-8 flex flex-col items-center justify-center">
+                    <i data-lucide="check-circle" class="text-emerald-500 w-6 h-6 sm:w-8 sm:h-8 mb-2"></i>
+                    <span class="text-emerald-800 font-bold text-sm sm:text-base">Заявка принята!</span>
+                    <span class="text-emerald-600 text-xs sm:text-sm mt-1">Мы перезвоним вам в течение 15 минут.</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Подвал (Навигация) -->
+    <footer class="bg-white border-t border-slate-200 mt-auto sticky bottom-0 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <button id="btn-prev" class="flex items-center gap-1 sm:gap-2 font-bold px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all text-xs sm:text-base text-slate-600 hover:bg-slate-100 active:bg-slate-200">
+                <i data-lucide="chevron-left" class="w-4 h-4 sm:w-5 sm:h-5"></i> Назад
+            </button>
+            
+            <div id="footer-center-text" class="text-[10px] sm:text-sm font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full hidden">
+                выберите план выше
+            </div>
+
+            <button id="btn-next" class="flex items-center gap-1 sm:gap-2 bg-[#0f172a] hover:bg-slate-800 active:bg-slate-900 text-white font-bold px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl transition-all shadow-md text-sm sm:text-base">
+                Далее <i data-lucide="chevron-right" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Логика приложения (JS) -->
+    <script>
+        // Инициализация иконок Lucide
+        lucide.createIcons();
+
+        // Состояние приложения
+        const state = {
+            step: 1,
+            totalSteps: 7,
+            metrics: {
+                revenue: 51,
+                foodCost: 36,
+                writeOffs: 9,
+                fot: 24
+            },
+            otherCosts: 22,
+            isCaseOptimized: false
+        };
+
+        // DOM элементы
+        const elStepDisplay = document.getElementById('current-step-display');
+        const elProgressBar = document.getElementById('progress-bar');
+        const elBtnPrev = document.getElementById('btn-prev');
+        const elBtnNext = document.getElementById('btn-next');
+        const elFooterText = document.getElementById('footer-center-text');
+
+        // Функция обновления UI в зависимости от шага
+        function updateStepUI() {
+            // Прячем все шаги
+            for(let i=1; i<=state.totalSteps; i++) {
+                document.getElementById(`step-${i}`).classList.remove('active');
+            }
+            // Показываем текущий
+            document.getElementById(`step-${state.step}`).classList.add('active');
+
+            // Обновляем шапку
+            elStepDisplay.innerText = state.step;
+            elProgressBar.style.width = `${(state.step / state.totalSteps) * 100}%`;
+
+            // Управление кнопками
+            if(state.step === 1) {
+                elBtnPrev.style.opacity = '0';
+                elBtnPrev.style.pointerEvents = 'none';
+            } else {
+                elBtnPrev.style.opacity = '1';
+                elBtnPrev.style.pointerEvents = 'auto';
+            }
+
+            if(state.step >= state.totalSteps || state.step === 6) {
+                elBtnNext.style.display = 'none';
+            } else {
+                elBtnNext.style.display = 'flex';
+            }
+
+            if(state.step === 6) {
+                elFooterText.classList.remove('hidden');
+            } else {
+                elFooterText.classList.add('hidden');
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Навигация
+        elBtnNext.addEventListener('click', () => {
+            if(state.step < state.totalSteps) {
+                state.step++;
+                updateStepUI();
+            }
+        });
+
+        elBtnPrev.addEventListener('click', () => {
+            if(state.step > 1) {
+                state.step--;
+                updateStepUI();
+            }
+        });
+
+        // Переход с тарифов (кнопки "Выбрать план")
+        document.querySelectorAll('.btn-select-plan').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.step = 7;
+                updateStepUI();
+            });
+        });
+
+        // Выбор болей (Шаг 2)
+        document.querySelectorAll('.pain-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.classList.toggle('selected');
+            });
+        });
+
+        // Расчеты (Шаг 3, 4, 6)
+        function calculateMetrics() {
+            const m = state.metrics;
+            const currentTotalCosts = m.foodCost + m.writeOffs + m.fot + state.otherCosts;
+            const currentMargin = Math.max(0, 100 - currentTotalCosts);
+            const currentProfit = (m.revenue * currentMargin) / 100;
+
+            const optimizedFoodCost = Math.max(0, m.foodCost - 3);
+            const optimizedWriteOffs = Math.max(0, m.writeOffs - 4);
+            const optimizedTotalCosts = optimizedFoodCost + optimizedWriteOffs + m.fot + state.otherCosts;
+            const optimizedMargin = Math.max(0, 100 - optimizedTotalCosts);
+            const optimizedProfit = (m.revenue * optimizedMargin) / 100;
+            
+            const additionalProfitPerMonth = optimizedProfit - currentProfit;
+            const profitPerDay = (additionalProfitPerMonth * 1000000) / 30;
+
+            // Обновляем текст в DOM (Шаг 3)
+            document.getElementById('val-rev').innerText = m.revenue;
+            document.getElementById('val-fc').innerText = m.foodCost;
+            document.getElementById('val-wo').innerText = m.writeOffs;
+            document.getElementById('val-fot').innerText = m.fot;
+            
+            document.getElementById('out-curr-profit').innerText = currentProfit.toFixed(1);
+            document.getElementById('out-curr-margin').innerText = currentMargin.toFixed(1);
+            document.getElementById('out-opt-profit').innerText = optimizedProfit.toFixed(1);
+            document.getElementById('out-add-profit').innerText = additionalProfitPerMonth > 0 ? additionalProfitPerMonth.toFixed(1) : "0.0";
+
+            // Обновляем P&L графики (Шаг 4)
+            document.getElementById('bar-fc').style.width = m.foodCost + '%';
+            document.getElementById('bar-fc').innerText = `FC ${m.foodCost}%`;
+            
+            document.getElementById('bar-wo').style.width = m.writeOffs + '%';
+            document.getElementById('bar-wo').innerText = `Брак ${m.writeOffs}%`;
+            
+            document.getElementById('bar-fot').style.width = m.fot + '%';
+            document.getElementById('bar-fot').innerText = `ФОТ ${m.fot}%`;
+            
+            document.getElementById('bar-other').style.width = state.otherCosts + '%';
+            document.getElementById('bar-other').innerText = `Прочее ${state.otherCosts}%`;
+            
+            document.getElementById('bar-margin').style.width = Math.max(0, currentMargin) + '%';
+            
+            document.getElementById('box-fc').innerText = (m.revenue * m.foodCost / 100).toFixed(1) + 'M';
+            document.getElementById('box-wo').innerText = (m.revenue * m.writeOffs / 100).toFixed(1) + 'M';
+            document.getElementById('box-fot').innerText = (m.revenue * m.fot / 100).toFixed(1) + 'M';
+            document.getElementById('box-other').innerText = (m.revenue * state.otherCosts / 100).toFixed(1) + 'M';
+            document.getElementById('box-profit').innerText = currentProfit.toFixed(1) + 'M';
+
+            // Обновляем ROI (Шаг 6)
+            document.getElementById('roi-days').innerText = profitPerDay > 0 ? Math.ceil(250000 / profitPerDay) : "-";
+            document.getElementById('roi-pot').innerText = additionalProfitPerMonth > 0 ? additionalProfitPerMonth.toFixed(1) : "0.0";
+        }
+
+        // Слушатели ползунков
+        const inputs = [
+            { id: 'range-revenue', key: 'revenue' },
+            { id: 'range-fc', key: 'foodCost' },
+            { id: 'range-writeoffs', key: 'writeOffs' },
+            { id: 'range-fot', key: 'fot' }
+        ];
+
+        inputs.forEach(input => {
+            document.getElementById(input.id).addEventListener('input', (e) => {
+                state.metrics[input.key] = Number(e.target.value);
+                calculateMetrics();
+            });
+        });
+
+        // Тумблер (Шаг 5)
+        document.getElementById('toggle-case-btn').addEventListener('click', () => {
+            state.isCaseOptimized = !state.isCaseOptimized;
+            const tLeft = document.getElementById('toggle-left');
+            const tRight = document.getElementById('toggle-right');
+            const arrow = document.getElementById('case-arrow');
+            const card1 = document.getElementById('case-card-1');
+            const card2 = document.getElementById('case-card-2');
+
+            if(state.isCaseOptimized) {
+                // Включен CFO
+                tLeft.className = "flex-1 text-center py-2 sm:py-3 rounded-full text-[10px] sm:text-sm font-bold transition-all duration-300 text-slate-500 hover:text-slate-700";
+                tRight.className = "flex-1 text-center py-2 sm:py-3 rounded-full text-[10px] sm:text-sm font-bold transition-all duration-300 bg-[#0f172a] shadow-md text-white scale-100 sm:scale-105";
+                
+                card1.className = "p-6 sm:p-8 rounded-3xl border-2 transition-all duration-500 bg-white border-slate-200 shadow-xl";
+                card2.className = "p-6 sm:p-8 rounded-3xl border-2 transition-all duration-500 bg-white border-slate-200 shadow-xl";
+                
+                arrow.classList.replace('text-slate-300', 'text-emerald-500');
+
+                document.getElementById('case-content-1a').classList.replace('block', 'hidden');
+                document.getElementById('case-content-1b').classList.replace('hidden', 'block');
+                
+                document.getElementById('case-content-2a').classList.replace('block', 'hidden');
+                document.getElementById('case-content-2b').classList.replace('hidden', 'block');
+            } else {
+                // Котловой учет
+                tLeft.className = "flex-1 text-center py-2 sm:py-3 rounded-full text-[10px] sm:text-sm font-bold transition-all duration-300 bg-white shadow-md text-slate-900 scale-100 sm:scale-105";
+                tRight.className = "flex-1 text-center py-2 sm:py-3 rounded-full text-[10px] sm:text-sm font-bold transition-all duration-300 text-slate-500 hover:text-slate-700";
+                
+                card1.className = "p-6 sm:p-8 rounded-3xl border-2 transition-all duration-500 bg-slate-50 border-slate-200";
+                card2.className = "p-6 sm:p-8 rounded-3xl border-2 transition-all duration-500 bg-slate-50 border-slate-200";
+                
+                arrow.classList.replace('text-emerald-500', 'text-slate-300');
+
+                document.getElementById('case-content-1b').classList.replace('block', 'hidden');
+                document.getElementById('case-content-1a').classList.replace('hidden', 'block');
+                
+                document.getElementById('case-content-2b').classList.replace('block', 'hidden');
+                document.getElementById('case-content-2a').classList.replace('hidden', 'block');
+            }
+        });
+
+        // Форма заявки (Шаг 7)
+        document.getElementById('btn-callback').addEventListener('click', () => {
+            document.getElementById('callback-btn-container').classList.add('hidden');
+            document.getElementById('callback-success').classList.remove('hidden');
+            document.getElementById('callback-success').classList.add('flex');
+            
+            // Восстановление формы через 5 секунд (опционально)
+            setTimeout(() => {
+                document.getElementById('callback-success').classList.add('hidden');
+                document.getElementById('callback-success').classList.remove('flex');
+                document.getElementById('callback-btn-container').classList.remove('hidden');
+            }, 5000);
+        });
+
+        // Инициализация при старте
+        calculateMetrics();
+        updateStepUI();
+
+    </script>
+</body>
+</html>
